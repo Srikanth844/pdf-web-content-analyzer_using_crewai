@@ -1,0 +1,5 @@
+crewai
+playwright
+pandas
+pymupdf
+crewai-tools
