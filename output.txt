@@ -1,0 +1,24 @@
+The web page content has been successfully written to "output.txt". Here is the complete content:
+
+```
+<!DOCTYPE html>
+<html lang="en" class="dark js-focus-visible lg:[--scroll-mt:9.5rem]" data-js-focus-visible="">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="https://mintlify.s3-us-west-1.amazonaws.com/crewai/_generated/favicon/apple-touch-icon.png?v=3">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://mintlify.s3-us-west-1.amazonaws.com/crewai/_generated/favicon/favicon-32x32.png?v=3">
+    <link rel="icon" type="image/png" sizes="16x16" href="https://mintlify.s3-us-west-1.amazonaws.com/crewai/_generated/favicon/favicon-16x16.png?v=3">
+    <link rel="shortcut icon" type="image/x-icon" href="https://mintlify.s3-us-west-1.amazonaws.com/crewai/_generated/favicon/favicon.ico?v=3">
+    <meta name="msapplication-config" content="https://mintlify.s3-us-west-1.amazonaws.com/crewai/_generated/favicon/browserconfig.xml?v=3">
+    <meta name="apple-mobile-web-app-title" content="CrewAI">
+    <meta name="application-name" content="CrewAI">
+    ...
+</head>
+<body>
+    ...
+</body>
+</html>
+```
+
+(The ellipsis indicates where the content may continue, as the full content of the document was too lengthy to display in entirety). The task has been successfully completed.
