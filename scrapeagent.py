@@ -1,109 +1,147 @@
+import os
 from crewai import Agent, Task, Crew
-from playwright.sync_api import sync_playwright
+from typing import Union
 import pandas as pd
 import fitz
-import os
-
-# Define an agent for web scraping
-class WebScraper:
-    def scrape_url(self, url):
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-            page.goto(url)
-            data = page.content()  # Extract HTML content
-            browser.close()
-        return data
-
-scraper_agent = Agent(
-    role="Web Scraper",
-    goal="Extract content from given URLs using Playwright.",
-    backstory="An expert at fetching and analyzing web data efficiently.",
-    allow_delegation=False,
-    function_calling_llm=WebScraper.scrape_url  # Correct function reference
-)
-
-# Define an agent for PDF extraction
-class PDFExtractor:
-    def extract_text(self, pdf_path):
-        text = ""
-        with fitz.open(pdf_path) as pdf:  # Open the PDF file
-            for page in pdf:  # Iterate over each page
-                text += page.get_text("text") + "\n"  # Extract text correctly
-        return text
-
-pdf_agent = Agent(
-    role="PDF Processor",
-    goal="Extract text from PDFs for data analysis.",
-    backstory="Specializes in extracting and summarizing textual data from PDFs.",
-    function_calling_llm=PDFExtractor.extract_text  # Correct function reference
-)
-# Define an agent for CSV processing
-class CSVProcessor:
-    def process_csv(self, csv_path):
-        df = pd.read_csv(csv_path)
-        return df.head().to_dict()  # Return first few rows as sample output
-
-csv_agent = Agent(
-    role="CSV Processor",
-    goal="Process CSV files and extract relevant information.",
-    backstory="Expert in handling structured data for analysis.",
-    function_calling_llm=CSVProcessor.process_csv  # Correct function reference
-)
-
-# Define a Manager agent to coordinate the workflow
-manager_agent = Agent(
-    role="AI Workflow Manager",
-    goal="Coordinate web scraping, PDF extraction, and CSV processing tasks.",
-    backstory="Orchestrates multiple AI agents to automate data collection and analysis."
-)
-
-# Define tasks
-# Define tasks with required 'type' field
-task_scrape_web = Task(
-    type="scraping_task",  # Add the 'type' field
-    description="Scrape the given URL and extract relevant data.",
-    expected_output="Extracted HTML content",  # Assuming this field is required
-    agent=scraper_agent
-)
-
-task_extract_pdf = Task(
-    type="pdf_extraction",  # Add the 'type' field
-    description="Extract text from a PDF document.",
-    expected_output="Extracted text from the PDF",  # Assuming this field is required
-    agent=pdf_agent
-)
-
-task_process_csv = Task(
-    type="csv_processing",  # Add the 'type' field
-    description="Process and analyze data from a CSV file.",
-    expected_output="Sample rows from CSV",  # Assuming this field is required
-    agent=csv_agent
-)
+import xml.etree.ElementTree as ET
+import requests
 
 
-
-# Assemble the Crew
-crew = Crew(
-    agents=[scraper_agent, pdf_agent, csv_agent, manager_agent],
-    tasks=[task_scrape_web, task_extract_pdf, task_process_csv],
+# Define Agents
+file_reader_agent = Agent(
+    role='File Reader',
+    goal='Read and extract raw content from various file formats',
+    backstory='Expert in parsing different file types with 10 years of experience in data processing',
     verbose=True
 )
 
-# Execute the workflow
+data_processor_agent = Agent(
+    role='Data Processor',
+    goal='Process and structure extracted data',
+    backstory='Data scientist with deep expertise in transforming raw data into usable formats',
+    verbose=True
+)
 
+file_writer_agent = Agent(
+    role='File Writer',
+    goal='Write processed data to text file',
+    backstory='Specialist in file operations and data storage',
+    verbose=True
+)
 
-# Example Inputs (optional for testing agents individually)
-url = "https://playwright.dev/python/docs/librarypython"
-# pdf_file = "sample.pdf"
-# csv_file = "data.csv"
+# Helper Functions
+def read_file(input_source: Union[str, bytes]) -> str:
+    """Read content from different input sources"""
+    try:
+        # Handle URL
+        if input_source.startswith('http'):
+            response = requests.get(input_source)
+            # soup = BeautifulSoup(response.content, 'html.parser')
+            # return soup.get_text()
 
-# Running Agents Individually (for testing)
-# web_data=scraper_agent.call(url)
-# # pdf_text = pdf_agent.function(pdf_file)
-# # csv_data = csv_agent.function(csv_file)
+        # Handle file paths
+        file_extension = os.path.splitext(input_source)[1].lower()
+        
+        if file_extension == '.pdf':
+            text = ""
+            with fitz.open(input_source) as pdf:  # Open the PDF file
+                for page in pdf:  # Iterate over each page
+                    text += page.get_text("text") + "\n"  # Extract text correctly
+            return text
+                
+        elif file_extension == '.csv':
+            df = pd.read_csv(input_source)
+            return df.to_string()
+            
+        elif file_extension == '.xlsx':
+            tree = ET.parse(input_source)
+            root = tree.getroot()
+            return ET.tostring(root, encoding='unicode')
+            
+        else:
+            raise ValueError("Unsupported file format")
+            
+    except Exception as e:
+        return f"Error reading input: {str(e)}"
 
-# print("Scraped Web Data:", web_data[:500])  # Print first 500 characters
-# print("Extracted PDF Text:", pdf_text[:500])
-# print("CSV Data Sample:", csv_data)
-crew.kickoff(inputs=url)
+def process_data(raw_content: str) -> str:
+    """Process raw content into structured format"""
+    try:
+        # Basic cleaning and formatting
+        processed = raw_content.strip()
+        processed = '\n'.join(line for line in processed.splitlines() if line.strip())
+        return processed
+    except Exception as e:
+        return f"Error processing data: {str(e)}"
+
+def write_to_file(content: str, output_path: str = "output.txt") -> str:
+    """Write content to text file"""
+    try:
+        with open(output_path, 'w', encoding='utf-8') as file:
+            file.write(content)
+        return f"Successfully wrote data to {output_path}"
+    except Exception as e:
+        return f"Error writing to file: {str(e)}"
+
+# Define Tasks
+read_task = Task(
+    description='Read and extract content from the input source: {input_source}',
+    agent=file_reader_agent,
+    expected_output='Raw text content extracted from the input',
+    tools=[read_file]
+)
+
+process_task = Task(
+    description='Process the extracted content into a structured format',
+    agent=data_processor_agent,
+    expected_output='Cleaned and structured text data',
+    tools=[process_data]
+)
+
+write_task = Task(
+    description='Write the processed data to a text file',
+    agent=file_writer_agent,
+    expected_output='Confirmation message of successful file write',
+    tools=[write_to_file]
+)
+
+# Main Application Class
+class DataScraperApp:
+    def _init_(self):
+        self.crew = Crew(
+            agents=[file_reader_agent, data_processor_agent, file_writer_agent],
+            tasks=[read_task, process_task, write_task],
+            verbose=2
+        )
+    
+    def process_input(self, input_source: str) -> dict:
+        # Update task descriptions with actual input
+        read_task.description = f'Read and extract content from the input source: {input_source}'
+        
+        # Execute the crew
+        result = self.crew.kickoff(inputs={'input_source': input_source})
+        return {
+            'status': 'success',
+            'result': result
+        }
+
+# Usage Example
+def main():
+    # Initialize the app
+    app = DataScraperApp()
+    
+    # Example inputs (uncomment one to test)
+    input_source = "example.pdf"
+    # input_source = "example.csv"
+    # input_source = "example.xml"
+    # input_source = "https://example.com"
+    
+    try:
+        result = app.process_input(input_source)
+        print(f"Processing completed: {result['result']}")
+    except Exception as e:
+        print(f"Error: {str(e)}")
+
+if __name__ == "__main__":
+    
+    main()
